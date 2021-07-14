@@ -15,45 +15,86 @@ def separable_conv(x, input_channels, output_channels, stride):
   x = tf.nn.relu6(x)
   return x
 
-def tiled_separable_conv_x2(x, tile_num):
-  input_channels = 8
-  output_channels = 16
-  stride = 1
-  depthwise_weights_1 = (np.random.random((3, 3, input_channels, 1)) * 2 - 1).astype(np.float32)
-  pointwise_weights_1 = (np.random.random((1, 1, input_channels, output_channels)) * 2 - 1).astype(np.float32)
-  x = tf.nn.depthwise_conv2d(x, depthwise_weights_1, strides = (1,stride,stride,1), padding = "SAME")
+def separable_conv_tiled(x, input_channels, output_channels, stride):
+  depthwise_weights = (np.random.random((3, 3, input_channels, 1)) * 2 - 1).astype(np.float32)
+  pointwise_weights = (np.random.random((1, 1, input_channels, output_channels)) * 2 - 1).astype(np.float32)
+  x = tf.nn.depthwise_conv2d(x, depthwise_weights, strides = (1,stride,stride,1), padding = "VALID")
   x = tf.nn.relu6(x)
+  x = tf.nn.conv2d(x, pointwise_weights, strides = (1,1,1,1), padding = "VALID")
+  x = tf.nn.relu6(x)
+  return x
+
+def tiled_part_1(x, w_tiles, h_tiles):
+  input_conv_weights = (np.random.random((3, 3, 3, 8)) * 2 - 1).astype(np.float32)
 
   tile = []
-  processed_tile = []
+  h_input = 128
+  w_input = 128
+  h_tile_size = h_input//h_tiles
+  w_tile_size = w_input//w_tiles
+  input_conv_weights = (np.random.random((3, 3, 3, 8)) * 2 - 1).astype(np.float32)
 
-  tile_size = 64//tile_num
-  for i in range(tile_num):
+  input_channels_1 = 8
+  output_channels_1 = 16
+  stride_1 = 1
+  depthwise_weights_1 = (np.random.random((3, 3, input_channels_1, 1)) * 2 - 1).astype(np.float32)
+  pointwise_weights_1 = (np.random.random((1, 1, input_channels_1, output_channels_1)) * 2 - 1).astype(np.float32)
+
+  input_channels_2 = 16
+  output_channels_2 = 32
+  stride_2 = 2
+  depthwise_weights_2 = (np.random.random((3, 3, input_channels_2, 1)) * 2 - 1).astype(np.float32)
+  pointwise_weights_2 = (np.random.random((1, 1, input_channels_2, output_channels_2)) * 2 - 1).astype(np.float32)
+
+  low_cummulative_padding = 4
+  high_cummulative_padding = 4
+
+
+  for i in range(h_tiles):
     tile += [[]]
-    for j in range(tile_num):
-      tile[i] += [tf.slice(x, (0, tile_size * i, tile_size * j, 0), (1, tile_size, tile_size, input_channels))]
-  print(tile)
-  
-  for i in range(tile_num):
-    processed_tile += [[]]
-    for j in range(tile_num):
-      tmp = tf.nn.conv2d(tile[i][j], pointwise_weights_1, strides = (1,1,1,1), padding = "SAME")
-      processed_tile[i] += [tf.nn.relu6(tmp)]
-  print(processed_tile)
+    for j in range(w_tiles):
+      left_bound = max(w_tile_size * j - low_cummulative_padding, 0)
+      right_bound = min(w_tile_size * (j + 1) + high_cummulative_padding, w_input)
+      top_bound = max(h_tile_size * i - low_cummulative_padding, 0)
+      bottom_bound = min(h_tile_size * (i + 1) + high_cummulative_padding, h_input)
 
-  input_channels = 16
-  output_channels = 32
-  stride = 2
-  depthwise_weights_2 = (np.random.random((3, 3, input_channels, 1)) * 2 - 1).astype(np.float32)
-  pointwise_weights_2 = (np.random.random((1, 1, input_channels, output_channels)) * 2 - 1).astype(np.float32)
-  for i in range(tile_num):
-    for j in range(tile_num):
-      tmp = tf.nn.depthwise_conv2d(processed_tile[i][j], depthwise_weights_2, strides = (1,stride,stride,1), padding = "SAME")
-      processed_tile[i][j] = tf.nn.relu6(tmp)
+      y = tf.slice(x, (0, left_bound, top_bound, 0), (1, right_bound - left_bound, bottom_bound - top_bound, 3))
+
+      left_pad = 0
+      right_pad = 0
+      top_pad = 0
+      bottom_pad = 0
+
+      if j == 0:
+        left_pad = low_cummulative_padding
+      if j == w_tiles-1:
+        right_pad = high_cummulative_padding
+
+      if i == 0:
+        top_pad = low_cummulative_padding
+      if i == h_tiles-1:
+        bottom_pad = high_cummulative_padding
+
+      need_padding = left_pad != 0 or right_pad != 0 or top_pad != 0 or bottom_pad != 0
+      if need_padding:
+        y = tf.pad(y, [[0,0],[top_pad, bottom_pad],[left_pad, right_pad],[0,0]])
+
+      y = tf.nn.conv2d(y, input_conv_weights, strides = (1,2,2,1), padding = "VALID")
+      y = tf.nn.relu6(y)
+
+      y = tf.nn.depthwise_conv2d(y, depthwise_weights_1, strides = (1,stride_1,stride_1,1), padding = "VALID")
+      y = tf.nn.relu6(y)
+
+      y = tf.nn.conv2d(y, pointwise_weights_1, strides = (1,1,1,1), padding = "VALID")
+      y = tf.nn.relu6(y)
+
+      y = tf.nn.depthwise_conv2d(y, depthwise_weights_2, strides = (1,stride_2,stride_2,1), padding = "VALID")
+      y = tf.nn.relu6(y)
+      tile[i] += [y]
   
   hor_concats = []
-  for i in range(tile_num):
-    hor_concats += [tf.concat(processed_tile[i], axis = 2)]
+  for i in range(h_tiles):
+    hor_concats += [tf.concat(tile[i], axis = 2)]
   x = tf.concat(hor_concats, axis = 1)
 
   x = tf.nn.conv2d(x, pointwise_weights_2, strides = (1,1,1,1), padding = "SAME")
@@ -62,11 +103,7 @@ def tiled_separable_conv_x2(x, tile_num):
 
 
 def model_forward(x):
-  input_conv_weights = (np.random.random((3, 3, 3, 8)) * 2 - 1).astype(np.float32)
-  fc_weights = (np.random.random((1, 1, 256, 1001)) * 2 - 1).astype(np.float32)
-  x = tf.nn.conv2d(x, input_conv_weights, strides = (1,2,2,1), padding = "SAME")
-  x = tf.nn.relu6(x)
-  x = tiled_separable_conv_x2(x, 4)
+  x = tiled_part_1(x, 2, 2)
   x = separable_conv(x, 32, 64, 2)
   x = separable_conv(x, 64, 64, 1)
   x = separable_conv(x, 64, 128, 2)
@@ -78,6 +115,7 @@ def model_forward(x):
   x = separable_conv(x, 128, 256, 2)
   x = separable_conv(x, 256, 256, 1)
   x = tf.nn.avg_pool(x, 4, strides = (1,1,1,1), padding = "VALID")
+  fc_weights = (np.random.random((1, 1, 256, 1001)) * 2 - 1).astype(np.float32)
   x = tf.nn.conv2d(x, fc_weights, strides = (1,1,1,1), padding = "SAME")
   x = tf.nn.relu6(x)
   x = tf.reshape(x, (1,-1))
@@ -94,11 +132,11 @@ def representative_dataset():
       data = np.random.rand(1, 128, 128, 3) * 2 - 1
       yield [data.astype(np.float32)]
 
-converter.optimizations = [tf.lite.Optimize.DEFAULT]
-converter.representative_dataset = representative_dataset
-converter.target_spec.supported_ops = [tf.lite.OpsSet.TFLITE_BUILTINS_INT8]
-converter.inference_input_type = tf.int8
-converter.inference_output_type = tf.int8
+#converter.optimizations = [tf.lite.Optimize.DEFAULT]
+#converter.representative_dataset = representative_dataset
+#converter.target_spec.supported_ops = [tf.lite.OpsSet.TFLITE_BUILTINS_INT8]
+#converter.inference_input_type = tf.int8
+#converter.inference_output_type = tf.int8
 
 tflite_model = converter.convert()
 with open("model.tflite", "wb") as f:
