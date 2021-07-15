@@ -47,8 +47,6 @@ def tiled_part_1(x, w_tiles, h_tiles):
   w_input = 128
   h_output = 32
   w_output = 32
-  assert h_input % h_tiles == 0
-  assert w_input % w_tiles == 0
   h_tile_size = h_output//h_tiles
   w_tile_size = w_output//w_tiles
   input_conv_weights = (np.random.random((3, 3, 3, 8)) * 2 - 1).astype(np.float32)
@@ -73,6 +71,12 @@ def tiled_part_1(x, w_tiles, h_tiles):
       tile_bottom = (i+1) * h_tile_size - 1
       tile_left = j *w_tile_size
       tile_right = (j+1) * w_tile_size - 1
+
+      if i == h_tiles - 1:
+        tile_bottom += h_output % h_tile_size
+
+      if j == w_tiles - 1:
+        tile_right += w_output % w_tile_size
 
       # inference origin of output tile
       left_bound, right_bound = get_tile_part1_image(tile_left, tile_right)
@@ -127,7 +131,7 @@ def tiled_part_1(x, w_tiles, h_tiles):
 
 
 def model_forward(x):
-  x = tiled_part_1(x, 4, 2)
+  x = tiled_part_1(x, 2, 3)
   x = separable_conv(x, 32, 64, 2)
   x = separable_conv(x, 64, 64, 1)
   x = separable_conv(x, 64, 128, 2)
