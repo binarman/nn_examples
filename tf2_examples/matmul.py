@@ -3,10 +3,9 @@
 import tensorflow as tf
 import numpy as np
 # Construct a basic model.
-root = tf.train.Checkpoint()
 
-root.f = tf.function(lambda x,y: tf.linalg.matmul(x, y, transpose_a=False, transpose_b=False))
-#root.f = tf.function(lambda x,y: tf.matmul(x, y))
+f = tf.function(lambda x,y: tf.linalg.matmul(x, y, transpose_a=False, transpose_b=False))
+#f = tf.function(lambda x,y: tf.matmul(x, y))
 
 #transpose_a=False, transpose_b=False, adjoint_a=False, adjoint_b=False,
 #    a_is_sparse=False, b_is_sparse=False, name=None
@@ -14,7 +13,7 @@ root.f = tf.function(lambda x,y: tf.linalg.matmul(x, y, transpose_a=False, trans
 # Create the concrete function.
 input_x = np.ones(shape=[1, 3], dtype=np.float32)
 input_y = np.ones(shape=[3, 1], dtype=np.float32)
-concrete_func = root.f.get_concrete_function(input_x, input_y)
+concrete_func = f.get_concrete_function(input_x, input_y)
 
 converter = tf.lite.TFLiteConverter.from_concrete_functions([concrete_func])
 converter.allow_custom_ops = True

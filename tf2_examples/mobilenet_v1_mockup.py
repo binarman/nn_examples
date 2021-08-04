@@ -15,7 +15,6 @@ def separable_conv(x, input_channels, output_channels, stride):
   x = tf.nn.relu6(x)
   return x
 
-
 def model_forward(x):
   input_conv_weights = np.random.random((3, 3, 3, 8)).astype(np.float32)
   fc_weights = np.random.random((1, 1, 256, 1001)).astype(np.float32)

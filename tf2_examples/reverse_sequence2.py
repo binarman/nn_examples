@@ -3,14 +3,13 @@
 import tensorflow as tf
 import numpy as np
 # Construct a basic model.
-root = tf.train.Checkpoint()
 
 indices = tf.constant([7, 2, 3, 5], dtype=np.int32)
-root.f = tf.function(lambda x: tf.reverse_sequence(x, indices, seq_axis=1))
+f = tf.function(lambda x: tf.reverse_sequence(x, indices, seq_axis=1))
 
 # Create the concrete function.
 input_x = np.ones(shape=[4,8], dtype=np.float32)
-concrete_func = root.f.get_concrete_function(input_x)
+concrete_func = f.get_concrete_function(input_x)
 converter = tf.lite.TFLiteConverter.from_concrete_functions([concrete_func])
 
 #converter.allow_custom_ops = True

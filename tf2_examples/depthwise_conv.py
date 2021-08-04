@@ -3,8 +3,6 @@
 import tensorflow as tf
 import numpy as np
 
-root = tf.train.Checkpoint()
-
 input_size = tf.constant([1,4,4,2])
 
 # weights dimensions are W,H, in channels, out channels
@@ -14,9 +12,9 @@ filters = np.array(np.random.uniform(low = -1., high = 1, size=[3, 3, 4, 1]), dt
 strides = (1, 2, 2, 1)
 dilations = np.array((2, 2), dtype=np.int64)
 
-root.f = tf.function(lambda x: tf.nn.depthwise_conv2d(x, filters, strides, "VALID", data_format="NHWC", dilations=dilations))
+f = tf.function(lambda x: tf.nn.depthwise_conv2d(x, filters, strides, "VALID", data_format="NHWC", dilations=dilations))
 
-concrete_func = root.f.get_concrete_function(input_data)
+concrete_func = f.get_concrete_function(input_data)
 converter = tf.lite.TFLiteConverter.from_concrete_functions([concrete_func])
 tflite_model = converter.convert()
 with open("model.tflite", "wb") as f:

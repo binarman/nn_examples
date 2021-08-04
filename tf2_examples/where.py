@@ -3,10 +3,9 @@
 import tensorflow as tf
 import numpy as np
 # Construct a basic model.
-root = tf.train.Checkpoint()
 
-#root.f = tf.function(lambda cond: tf.where(cond, [[1,2,3,4]], [100,200,300,400]))
-root.f = tf.function(lambda cond: tf.where(cond)) 
+#f = tf.function(lambda cond: tf.where(cond, [[1,2,3,4]], [100,200,300,400]))
+f = tf.function(lambda cond: tf.where(cond)) 
 
 #x = tf.constant(2)
 #y = tf.constant(5)
@@ -16,7 +15,7 @@ root.f = tf.function(lambda cond: tf.where(cond))
 
 # Create the concrete function.
 input_x = np.ones(shape=[4], dtype=np.bool)
-concrete_func = root.f.get_concrete_function(input_x)
+concrete_func = f.get_concrete_function(input_x)
 
 print("create concrete function")
 

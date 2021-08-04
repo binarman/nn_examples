@@ -3,12 +3,11 @@
 import tensorflow as tf
 import numpy as np
 # Construct a basic model.
-root = tf.train.Checkpoint()
 
-#root.f = tf.function(lambda x,y: tf.realdiv(x, y))
+#f = tf.function(lambda x,y: tf.realdiv(x, y))
 def f1(x): return tf.multiply(x, 2)
 def f2(x): return tf.add(x, 3)
-root.f = tf.function(lambda cond,x: tf.cond(cond, lambda : f1(x), lambda : f2(x)))
+f = tf.function(lambda cond,x: tf.cond(cond, lambda : f1(x), lambda : f2(x)))
 
 #x = tf.constant(2)
 #y = tf.constant(5)
@@ -19,7 +18,7 @@ root.f = tf.function(lambda cond,x: tf.cond(cond, lambda : f1(x), lambda : f2(x)
 # Create the concrete function.
 input_x = np.ones(shape=[3], dtype=np.float32)
 cond = tf.constant(1)
-concrete_func = root.f.get_concrete_function(cond, input_x)
+concrete_func = f.get_concrete_function(cond, input_x)
 
 print("create concrete function")
 

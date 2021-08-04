@@ -129,9 +129,8 @@ def tiled_part_1(x, w_tiles, h_tiles):
   x = tf.nn.relu6(x)
   return x
 
-
 def model_forward(x):
-  x = tiled_part_1(x, 2, 3)
+  x = tiled_part_1(x, 4, 4)
   x = separable_conv(x, 32, 64, 2)
   x = separable_conv(x, 64, 64, 1)
   x = separable_conv(x, 64, 128, 2)
